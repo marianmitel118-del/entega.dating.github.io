@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entega Tinder</title>
+  <style>
+    :root{ --green:#28a745; --red:#dc3545; --bg:#f7f7f8; --card:#ffffff; }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:var(--bg); color:#222}
+    header{background:#111; color:#fff; padding:12px 16px; display:flex; align-items:center; justify-content:space-between}
+    header h1{font-size:18px; margin:0}
+    .container{display:grid; grid-template-columns: 360px 1fr 320px; gap:16px; padding:16px; max-width:1200px; margin:18px auto}
+
+    /* left column: profile creator */
+    .card{background:var(--card); border-radius:12px; padding:14px; box-shadow:0 6px 16px rgba(2,8,23,0.06)}
+    form .row{margin-bottom:10px}
+    label{display:block; font-size:13px; margin-bottom:6px}
+    input[type=text], input[type=number], textarea{width:100%; padding:8px 10px; border-radius:8px; border:1px solid #e3e6ea}
+    input[type=file]{font-size:13px}
+    button{cursor:pointer; border:0; padding:10px 12px; border-radius:10px}
+    .btn-primary{background:var(--green); color:#fff}
+    .btn-danger{background:var(--red); color:#fff}
+
+    /* middle column: swipe stack */
+    .stage{height:640px; display:flex; align-items:center; justify-content:center}
+    .stack{position:relative; width:360px; height:560px}
+    .profile-card{position:absolute; width:100%; height:100%; border-radius:12px; overflow:hidden; background:linear-gradient(180deg,#fff,#fafafa); box-shadow:0 12px 30px rgba(2,8,23,0.12); display:flex; flex-direction:column; transition:transform .25s ease, opacity .25s ease}
+    .profile-card img{width:100%; height:320px; object-fit:cover}
+    .profile-info{padding:12px; flex:1}
+    .name-age{display:flex; align-items:center; justify-content:space-between}
+    .note{margin-top:8px; font-size:14px; color:#444}
+    .controls{display:flex; gap:12px; justify-content:center; margin-top:12px}
+    .btn-like{background:var(--green); color:#fff; width:64px; height:64px; border-radius:999px; font-size:22px}
+    .btn-pass{background:var(--red); color:#fff; width:64px; height:64px; border-radius:999px; font-size:22px}
+    .hint{font-size:13px; text-align:center; color:#666; margin-top:8px}
+
+    /* right column: matches & chat */
+    .matches-list{max-height:220px; overflow:auto; margin-bottom:10px}
+    .match-item{display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px}
+    .match-item img{width:46px; height:46px; border-radius:8px; object-fit:cover}
+    .chat-area{height:360px; border-radius:8px; background:#fff; overflow:hidden; display:flex; flex-direction:column}
+    .messages{flex:1; padding:12px; overflow:auto}
+    .msg{max-width:75%; padding:8px 10px; border-radius:10px; margin-bottom:8px}
+    .msg.me{background:var(--green); color:#fff; margin-left:auto}
+    .msg.them{background:#eee; color:#222}
+    .chat-input{display:flex; gap:8px; padding:10px}
+    .small{font-size:13px; color:#666}
+
+    /* responsive */
+    @media (max-width:980px){.container{grid-template-columns:1fr; padding:12px} .stage{order:2} .card{order:1} .chat-area{order:3}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Entega Tinder</h1>
+    <div class="small">Rechts = Match · Links = Pass</div>
+  </header>
+
+  <main class="container">
+    <!-- left: profile creation -->
+    <section class="card">
+      <h2>Profil erstellen</h2>
+      <form id="profileForm">
+        <div class="row">
+          <label for="name">Name</label>
+          <input id="name" type="text" required />
+        </div>
+        <div class="row">
+          <label for="age">Alter</label>
+          <input id="age" type="number" min="18" required />
+        </div>
+        <div class="row">
+          <label for="notes">Bemerkungen</label>
+          <textarea id="notes" rows="3"></textarea>
+        </div>
+        <div class="row">
+          <label for="photo">Foto</label>
+          <input id="photo" type="file" accept="image/*" />
+        </div>
+        <div class="row" style="display:flex; gap:8px">
+          <button type="submit" class="btn-primary">Profil hinzufügen</button>
+          <button type="button" id="clearProfiles" class="btn-danger">Alle löschen</button>
+        </div>
+        <div class="row small">Hinweis: Das Profil wird lokal im Browser gespeichert (localStorage).</div>
+      </form>
+    </section>
+
+    <!-- middle: swipe area -->
+    <section>
+      <div class="card stage">
+        <div style="width:100%">
+          <div class="stack" id="stack"></div>
+          <div class="controls">
+            <button id="passBtn" class="btn-pass">✖</button>
+            <button id="likeBtn" class="btn-like">❤</button>
+          </div>
+          <div class="hint">Tipp: Ziehe die Karte nach links oder rechts oder nutze die Buttons.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- right: matches & chat -->
+    <section class="card">
+      <h2>Matches</h2>
+      <div class="matches-list" id="matchesList"></div>
+      <h3>Chat</h3>
+      <div class="chat-area">
+        <div class="messages" id="messages"></div>
+        <div class="chat-input">
+          <input id="chatInput" type="text" placeholder="Nachricht..." style="flex:1; padding:8px; border-radius:8px; border:1px solid #e3e6ea" />
+          <button id="sendBtn" class="btn-primary">Senden</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Simple in-browser data model
+    const STORAGE_KEY = 'entega_tinder_profiles_v1';
+    const MATCH_KEY = 'entega_tinder_matches_v1';
+
+    let profiles = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let matches = JSON.parse(localStorage.getItem(MATCH_KEY) || '[]');
+    let currentIndex = 0; // top card index
+    let dragging = false;
+
+    const stackEl = document.getElementById('stack');
+    const profileForm = document.getElementById('profileForm');
+    const photoInput = document.getElementById('photo');
+    const likeBtn = document.getElementById('likeBtn');
+    const passBtn = document.getElementById('passBtn');
+    const matchesList = document.getElementById('matchesList');
+    const messagesEl = document.getElementById('messages');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearProfilesBtn = document.getElementById('clearProfiles');
+
+    // --- Profiles management ---
+    profileForm.addEventListener('submit', async e =>{
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const age = document.getElementById('age').value.trim();
+      const notes = document.getElementById('notes').value.trim();
+      let imgData = null;
+      if(photoInput.files && photoInput.files[0]){
+        imgData = await readFileAsDataURL(photoInput.files[0]);
+      } else {
+        // placeholder colored image (SVG)
+        imgData = placeholderImage(name);
+      }
+      const id = 'p_'+Date.now();
+      profiles.unshift({id,name,age,notes,img:imgData}); // newest on top
+      saveProfiles();
+      renderStack();
+      profileForm.reset();
+    });
+
+    clearProfilesBtn.addEventListener('click', ()=>{
+      if(confirm('Alle Profile wirklich löschen?')){ profiles = []; matches = []; saveProfiles(); saveMatches(); renderStack(); renderMatches(); renderMessages(); }
+    })
+
+    function readFileAsDataURL(file){
+      return new Promise((res,rej)=>{
+        const fr = new FileReader();
+        fr.onload = ()=>res(fr.result);
+        fr.onerror = rej;
+        fr.readAsDataURL(file);
+      })
+    }
+
+    function placeholderImage(name){
+      // generate simple SVG data URL with initials
+      const initials = (name||'?').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
+      const bg = '#e9ecef';
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'><rect width='100%' height='100%' fill='${bg}'/><text x='50%' y='50%' font-size='120' dominant-baseline='middle' text-anchor='middle' fill='#6c757d' font-family='Verdana'>${initials}</text></svg>`;
+      return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+    }
+
+    function saveProfiles(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles)); }
+    function saveMatches(){ localStorage.setItem(MATCH_KEY, JSON.stringify(matches)); }
+
+    // --- Render stack ---
+    function renderStack(){
+      stackEl.innerHTML='';
+      if(profiles.length===0){
+        const empty = document.createElement('div'); empty.className='profile-card'; empty.style.display='flex'; empty.style.alignItems='center'; empty.style.justifyContent='center'; empty.innerHTML='<div class="small">Keine Profile. Erstelle zuerst ein Profil im linken Bereich.</div>';
+        stackEl.appendChild(empty); return;
+      }
+      // show up to 5 top profiles
+      const maxShow = Math.min(6, profiles.length);
+      for(let i=0;i<maxShow;i++){
+        const p = profiles[i];
+        const card = document.createElement('div'); card.className='profile-card';
+        card.style.zIndex = maxShow - i;
+        card.style.transform = `scale(${1 - i*0.03}) translateY(${i*8}px)`;
+        card.innerHTML = `<img src="${p.img}" alt="${p.name}"><div class="profile-info"><div class="name-age"><strong>${escapeHtml(p.name)}</strong><span>${escapeHtml(p.age)}</span></div><div class="note">${escapeHtml(p.notes)}</div></div>`;
+        attachDragHandlers(card, i);
+        stackEl.appendChild(card);
+      }
+    }
+
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // --- Drag & swipe ---
+    function attachDragHandlers(card, index){
+      let startX, startY, currentX=0, currentY=0;
+      const onStart = (e)=>{
+        dragging = true;
+        startX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        startY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        card.style.transition='none';
+      }
+      const onMove = (e)=>{
+        if(!dragging) return;
+        const x = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const y = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        currentX = x - startX; currentY = y - startY;
+        const rot = currentX/12;
+        card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rot}deg)`;
+      }
+      const onEnd = ()=>{
+        if(!dragging) return;
+        dragging = false; card.style.transition='transform .3s ease';
+        const threshold = card.clientWidth * 0.32;
+        if(Math.abs(currentX) > threshold){
+          if(currentX>0) doLike(); else doPass();
+        } else {
+          // reset
+          card.style.transform='';
+        }
+      }
+      card.addEventListener('mousedown', onStart); card.addEventListener('touchstart', onStart);
+      window.addEventListener('mousemove', onMove); window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('mouseup', onEnd); window.addEventListener('touchend', onEnd);
+    }
+
+    // --- Actions ---
+    function doLike(){
+      if(profiles.length===0) return;
+      const p = profiles.shift();
+      // create match
+      matches.unshift({id:p.id, name:p.name, img:p.img, created:Date.now(), messages:[]});
+      saveProfiles(); saveMatches();
+      renderStack(); renderMatches();
+      alert('MATCH mit ' + p.name + '! Chat geöffnet.');
+      openChat(matches[0].id);
+    }
+    function doPass(){ if(profiles.length===0) return; profiles.shift(); saveProfiles(); renderStack(); }
+
+    likeBtn.addEventListener('click', doLike);
+    passBtn.addEventListener('click', doPass);
+
+    // --- Matches & Chat UI ---
+    function renderMatches(){
+      matchesList.innerHTML='';
+      if(matches.length===0){ matchesList.innerHTML='<div class="small">Keine Matches bisher.</div>'; return; }
+      matches.forEach(m=>{
+        const el = document.createElement('div'); el.className='match-item'; el.innerHTML = `<img src="${m.img}" alt="${m.name}"><div style="flex:1"><strong>${escapeHtml(m.name)}</strong><div class="small">${new Date(m.created).toLocaleString()}</div></div><button data-id="${m.id}" class="btn-primary">Öffnen</button>`;
+        el.querySelector('button').addEventListener('click', ()=>openChat(m.id));
+        matchesList.appendChild(el);
+      })
+    }
+
+    function openChat(matchId){
+      const m = matches.find(x=>x.id===matchId);
+      if(!m) return; // maybe removed
+      // highlight? just render messages
+      renderMessages(matchId);
+      // store currently open
+      currentChatId = matchId;
+    }
+
+    let currentChatId = null;
+    function renderMessages(matchId = currentChatId){
+      messagesEl.innerHTML='';
+      if(!matchId){ messagesEl.innerHTML='<div class="small">Wähle einen Match, um zu chatten.</div>'; return; }
+      const m = matches.find(x=>x.id===matchId);
+      if(!m) return;
+      m.messages.forEach(msg=>{
+        const div = document.createElement('div'); div.className='msg '+(msg.me ? 'me' : 'them'); div.textContent = msg.text; messagesEl.appendChild(div);
+      });
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    sendBtn.addEventListener('click', ()=>{
+      const txt = chatInput.value.trim(); if(!txt || !currentChatId) return;
+      const m = matches.find(x=>x.id===currentChatId); if(!m) return;
+      m.messages.push({me:true, text:txt, t:Date.now()});
+      // auto-reply simulation for demo
+      setTimeout(()=>{ m.messages.push({me:false, text:'Danke, ich habe deine Nachricht erhalten!'}); saveMatches(); renderMessages(currentChatId); }, 600);
+      chatInput.value=''; saveMatches(); renderMessages(currentChatId);
+    });
+
+    chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendBtn.click(); });
+
+    // --- init ---
+    renderStack(); renderMatches(); renderMessages();
+
+    // Helper: simple escape
+    // Persistence: keep matches in localStorage
+
+  </script>
+</body>
+</html>
